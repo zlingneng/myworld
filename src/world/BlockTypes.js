@@ -1,0 +1,47 @@
+export const BLOCK_TYPES = {
+  EMPTY: 0,
+  GRASS: 1,
+  DIRT: 2,
+  STONE: 3,
+  REDSTONE: 4,
+  IRON: 5,
+  GOLD: 6,
+  EMERALD: 7,
+  NETHERITE: 8,
+  LOG: 9,
+  LEAVES: 10,
+  WATER: 11,
+  MEAT: 12,
+  DIAMOND_ORE: 13,
+  WOOD_SWORD: 14,
+  STONE_SWORD: 15,
+  IRON_SWORD: 16,
+  DIAMOND_SWORD: 17,
+};
+
+export const BLOCK_DATA = {
+  [BLOCK_TYPES.GRASS]: { color: 0x4caf50, name: 'Grass', solid: true },
+  [BLOCK_TYPES.DIRT]: { color: 0x8b4513, name: 'Dirt', solid: true },
+  [BLOCK_TYPES.STONE]: { color: 0x808080, name: 'Stone', solid: true },
+  [BLOCK_TYPES.REDSTONE]: { color: 0xff0000, name: 'Redstone', solid: true },
+  [BLOCK_TYPES.IRON]: { color: 0xd3d3d3, name: 'Iron', solid: true },
+  [BLOCK_TYPES.GOLD]: { color: 0xffd700, name: 'Gold', solid: true },
+  [BLOCK_TYPES.EMERALD]: { color: 0x50c878, name: 'Emerald', solid: true },
+  [BLOCK_TYPES.NETHERITE]: { color: 0x3c3c3c, name: 'Netherite', solid: true },
+  [BLOCK_TYPES.LOG]: { color: 0x5d4037, name: 'Log', solid: true },
+  [BLOCK_TYPES.LEAVES]: { color: 0x388e3c, name: 'Leaves', solid: true, transparent: true },
+  [BLOCK_TYPES.WATER]: { color: 0x2196f3, name: 'Water', solid: false, transparent: true },
+  [BLOCK_TYPES.MEAT]: { color: 0xffa07a, name: 'Meat', solid: false, isItem: true, edible: true },
+  [BLOCK_TYPES.DIAMOND_ORE]: { color: 0x00ffff, name: 'Diamond Ore', solid: true },
+  [BLOCK_TYPES.WOOD_SWORD]: { color: 0x8b4513, name: 'Wood Sword', isItem: true, damage: 3 },
+  [BLOCK_TYPES.STONE_SWORD]: { color: 0x808080, name: 'Stone Sword', isItem: true, damage: 4 },
+  [BLOCK_TYPES.IRON_SWORD]: { color: 0xd3d3d3, name: 'Iron Sword', isItem: true, damage: 6 },
+  [BLOCK_TYPES.DIAMOND_SWORD]: { color: 0x00ffff, name: 'Diamond Sword', isItem: true, damage: 10 },
+};
+
+export const CRAFTING_RECIPES = [
+  { result: BLOCK_TYPES.WOOD_SWORD, ingredients: { [BLOCK_TYPES.LOG]: 2 } },
+  { result: BLOCK_TYPES.STONE_SWORD, ingredients: { [BLOCK_TYPES.STONE]: 2, [BLOCK_TYPES.LOG]: 1 } },
+  { result: BLOCK_TYPES.IRON_SWORD, ingredients: { [BLOCK_TYPES.IRON]: 2, [BLOCK_TYPES.LOG]: 1 } },
+  { result: BLOCK_TYPES.DIAMOND_SWORD, ingredients: { [BLOCK_TYPES.DIAMOND_ORE]: 2, [BLOCK_TYPES.LOG]: 1 } },
+];

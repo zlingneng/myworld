@@ -1,0 +1,19 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: #87CEEB;
+  font-family: sans-serif;
+  user-select: none;
+}
+
+canvas {
+  display: block;
+}
+
+#toolbar .slot {
+  transition: all 0.1s;
+}
+
+#toolbar .slot:hover {
+  background-color: #444;
+}
