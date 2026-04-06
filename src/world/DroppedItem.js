@@ -54,10 +54,12 @@ export class DroppedItem {
     this.mesh.rotation.y += delta * 2;
 
     // Magnet effect to player
-    const dist = this.mesh.position.distanceTo(playerPos);
+    let dist = this.mesh.position.distanceTo(playerPos);
     if (dist < 3) {
       const dir = playerPos.clone().sub(this.mesh.position).normalize();
       this.mesh.position.add(dir.multiplyScalar(delta * 5));
+      // Recalculate distance after moving
+      dist = this.mesh.position.distanceTo(playerPos);
     }
 
     return dist < 0.5; // Ready to be picked up

@@ -41,7 +41,7 @@ export const BLOCK_TYPES = {
 };
 
 export const BLOCK_DATA = {
-  [BLOCK_TYPES.GRASS]: { color: 0x4caf50, name: '草方块', solid: true, texture: 'textures/grass_texture.png' },
+  [BLOCK_TYPES.GRASS]: { color: 0x4caf50, name: '草方块', solid: true, texture: 'textures/stone_texture.png' },
   [BLOCK_TYPES.DIRT]: { color: 0x8b4513, name: '泥土', solid: true, texture: 'textures/stone_texture.png' },
   [BLOCK_TYPES.STONE]: { color: 0x808080, name: '石头', solid: true, texture: 'textures/stone_texture.png' },
   [BLOCK_TYPES.REDSTONE]: { color: 0xff0000, name: '红石', solid: true },

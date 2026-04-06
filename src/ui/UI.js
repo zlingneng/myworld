@@ -436,7 +436,7 @@ export class UI {
 
       if (canCraft) {
         recipeCard.addEventListener('click', () => {
-          this.player.tryCraft(index);
+          this.player.craftRecipe(recipe);
         });
 
         recipeCard.addEventListener('mouseenter', () => {

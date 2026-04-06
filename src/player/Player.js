@@ -253,22 +253,32 @@ export class Player {
   }
 
   tryCraft(recipeIndex = -1) {
-    const availableRecipes = this.getAvailableRecipes();
-    
-    if (availableRecipes.length === 0) {
-      console.log('[Crafting] No recipes available');
+    // 直接使用 CRAFTING_RECIPES 数组的索引
+    if (recipeIndex >= 0 && recipeIndex < CRAFTING_RECIPES.length) {
+      const recipe = CRAFTING_RECIPES[recipeIndex];
+      if (this.canCraftRecipe(recipe)) {
+        this.craftRecipe(recipe);
+        return true;
+      }
+    } else {
+      // 如果没有指定索引或索引无效，使用第一个可用的配方
+      const availableRecipes = this.getAvailableRecipes();
+      if (availableRecipes.length > 0) {
+        this.craftRecipe(availableRecipes[0]);
+        return true;
+      }
+    }
+    console.log('[Crafting] No valid recipe to craft');
+    return false;
+  }
+
+  tryCraftByRecipeIndex(recipeIndex) {
+    if (recipeIndex < 0 || recipeIndex >= CRAFTING_RECIPES.length) {
+      console.log('[Crafting] Invalid recipe index');
       return false;
     }
 
-    let recipe;
-    if (recipeIndex >= 0 && recipeIndex < availableRecipes.length) {
-      recipe = availableRecipes[recipeIndex];
-    } else {
-      recipe = availableRecipes[0];
-    }
-
-    if (!recipe) return false;
-
+    const recipe = CRAFTING_RECIPES[recipeIndex];
     const canCraft = this.canCraftRecipe(recipe);
     if (!canCraft) return false;
 
