@@ -6,7 +6,21 @@ export class DroppedItem {
     this.scene = scene;
     this.type = type;
     this.geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-    this.material = new THREE.MeshLambertMaterial({ color: BLOCK_DATA[type].color });
+    
+    let material;
+    const data = BLOCK_DATA[type];
+    if (data.texture) {
+      const textureLoader = new THREE.TextureLoader();
+      const texture = textureLoader.load(data.texture);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(1, 1);
+      material = new THREE.MeshLambertMaterial({ map: texture, color: data.color });
+    } else {
+      material = new THREE.MeshLambertMaterial({ color: data.color });
+    }
+    
+    this.material = material;
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.position.set(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5);
     this.scene.add(this.mesh);

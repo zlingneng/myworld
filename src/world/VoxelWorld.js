@@ -7,10 +7,17 @@ export class VoxelWorld {
   constructor(scene) {
     this.scene = scene;
     this.chunkSize = 16;
-    this.worldSize = { x: 64, y: 32, z: 64 }; // Enlarge world
+    this.worldSize = { x: 200, y: 32, z: 200 }; // Enlarge world to 200x200
     this.blocks = new Uint8Array(this.worldSize.x * this.worldSize.y * this.worldSize.z);
     
     this.meshes = new Map(); // chunkKey -> Mesh
+    
+    // 纹理加载器
+    this.textureLoader = new THREE.TextureLoader();
+    this.textures = new Map();
+    this.loadTextures();
+    
+    // 默认材质（无纹理时使用）
     this.material = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.transparentMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
     
@@ -32,6 +39,19 @@ export class VoxelWorld {
     this.generateTerrain();
     this.spawnAnimals();
     this.updateAllChunks();
+  }
+
+  loadTextures() {
+    // 加载生成的纹理
+    Object.values(BLOCK_DATA).forEach(data => {
+      if (data.texture) {
+        const texture = this.textureLoader.load(data.texture);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+        this.textures.set(data.texture, texture);
+      }
+    });
   }
 
   spawnAnimals() {
@@ -68,10 +88,25 @@ export class VoxelWorld {
     const waterLevel = 12;
     for (let x = 0; x < this.worldSize.x; x++) {
       for (let z = 0; z < this.worldSize.z; z++) {
-        // Simple hilly terrain
-        const height = Math.floor(
-          Math.sin(x * 0.1) * 3 + Math.cos(z * 0.1) * 3 + 15
-        );
+        // Improved terrain with different biomes
+        const noise1 = Math.sin(x * 0.1) * 3 + Math.cos(z * 0.1) * 3;
+        const noise2 = Math.sin(x * 0.05) * 2 + Math.cos(z * 0.05) * 2;
+        const height = Math.floor(noise1 + noise2 + 15);
+        
+        // Biome determination based on noise
+        const biomeNoise = Math.sin(x * 0.02) + Math.cos(z * 0.02);
+        let surfaceBlock = BLOCK_TYPES.GRASS;
+        let subSurfaceBlock = BLOCK_TYPES.DIRT;
+        
+        if (biomeNoise > 0.5) {
+          // Desert biome
+          surfaceBlock = BLOCK_TYPES.SAND;
+          subSurfaceBlock = BLOCK_TYPES.SAND;
+        } else if (biomeNoise < -0.5) {
+          // Forest biome (more trees)
+          surfaceBlock = BLOCK_TYPES.GRASS;
+          subSurfaceBlock = BLOCK_TYPES.DIRT;
+        }
         
         for (let y = 0; y < this.worldSize.y; y++) {
           let type = BLOCK_TYPES.EMPTY;
@@ -85,18 +120,24 @@ export class VoxelWorld {
             else if (Math.random() < 0.001) type = BLOCK_TYPES.NETHERITE;
             else if (Math.random() < 0.003) type = BLOCK_TYPES.DIAMOND_ORE;
           } else if (y < height - 1) {
-            type = BLOCK_TYPES.DIRT;
+            type = subSurfaceBlock;
           } else if (y < height) {
-            type = BLOCK_TYPES.GRASS;
+            type = surfaceBlock;
           } else if (y < waterLevel) {
             type = BLOCK_TYPES.WATER;
           }
           this.blocks[this.getIndex(x, y, z)] = type;
         }
 
-        // Random trees
-        if (height >= waterLevel && Math.random() < 0.02) {
+        // Random trees (more in forest biome)
+        const treeChance = biomeNoise < -0.5 ? 0.04 : 0.02;
+        if (height >= waterLevel && Math.random() < treeChance) {
           this.generateTree(x, height, z);
+        }
+        
+        // Add wheat in plains
+        if (biomeNoise > -0.2 && biomeNoise < 0.2 && height >= waterLevel && Math.random() < 0.01) {
+          this.setBlockRaw(x, height, z, BLOCK_TYPES.WHEAT);
         }
       }
     }
@@ -158,14 +199,13 @@ export class VoxelWorld {
 
   generateChunkMesh(cx, cy, cz) {
     const key = `${cx},${cy},${cz}`;
-    const transKey = `${cx},${cy},${cz}_trans`;
     if (cx < 0 || cy < 0 || cz < 0 || 
         cx >= this.worldSize.x / this.chunkSize || 
         cy >= this.worldSize.y / this.chunkSize || 
         cz >= this.worldSize.z / this.chunkSize) return;
 
-    const solid = { positions: [], normals: [], colors: [], indices: [] };
-    const transparent = { positions: [], normals: [], colors: [], indices: [] };
+    // 按材质分组
+    const materialGroups = new Map();
 
     const startX = cx * this.chunkSize;
     const startY = cy * this.chunkSize;
@@ -181,33 +221,48 @@ export class VoxelWorld {
 
           if (type !== BLOCK_TYPES.EMPTY) {
             const data = BLOCK_DATA[type];
+            const materialKey = data.texture || 'default';
+            
+            if (!materialGroups.has(materialKey)) {
+              materialGroups.set(materialKey, {
+                positions: [],
+                normals: [],
+                colors: [],
+                uvs: [],
+                indices: [],
+                transparent: data.transparent || false,
+                data: data
+              });
+            }
+
+            const group = materialGroups.get(materialKey);
             const color = new THREE.Color(data.color);
-            const target = data.transparent ? transparent : solid;
 
             // Check 6 faces
             const neighbors = [
-              { dir: [1, 0, 0], pos: [1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1], normal: [1, 0, 0] },
-              { dir: [-1, 0, 0], pos: [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0], normal: [-1, 0, 0] },
-              { dir: [0, 1, 0], pos: [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0], normal: [0, 1, 0] },
-              { dir: [0, -1, 0], pos: [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1], normal: [0, -1, 0] },
-              { dir: [0, 0, 1], pos: [0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1], normal: [0, 0, 1] },
-              { dir: [0, 0, -1], pos: [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0], normal: [0, 0, -1] },
+              { dir: [1, 0, 0], pos: [1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1], normal: [1, 0, 0], uvs: [1, 0, 1, 1, 0, 1, 0, 0] },
+              { dir: [-1, 0, 0], pos: [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0], normal: [-1, 0, 0], uvs: [0, 0, 0, 1, 1, 1, 1, 0] },
+              { dir: [0, 1, 0], pos: [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0], normal: [0, 1, 0], uvs: [0, 1, 1, 1, 1, 0, 0, 0] },
+              { dir: [0, -1, 0], pos: [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1], normal: [0, -1, 0], uvs: [0, 0, 1, 0, 1, 1, 0, 1] },
+              { dir: [0, 0, 1], pos: [0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1], normal: [0, 0, 1], uvs: [0, 0, 1, 0, 1, 1, 0, 1] },
+              { dir: [0, 0, -1], pos: [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0], normal: [0, 0, -1], uvs: [1, 0, 0, 0, 0, 1, 1, 1] },
             ];
 
-            for (const { dir, pos, normal } of neighbors) {
+            for (const { dir, pos, normal, uvs } of neighbors) {
               const nx = voxX + dir[0];
               const ny = voxY + dir[1];
               const nz = voxZ + dir[2];
               
               const neighborType = this.getBlock(nx, ny, nz);
               if (neighborType === BLOCK_TYPES.EMPTY || (BLOCK_DATA[neighborType]?.transparent && !data.transparent)) {
-                const ndx = target.positions.length / 3;
+                const ndx = group.positions.length / 3;
                 for (let i = 0; i < 4; i++) {
-                  target.positions.push(voxX + pos[i * 3], voxY + pos[i * 3 + 1], voxZ + pos[i * 3 + 2]);
-                  target.normals.push(...normal);
-                  target.colors.push(color.r, color.g, color.b);
+                  group.positions.push(voxX + pos[i * 3], voxY + pos[i * 3 + 1], voxZ + pos[i * 3 + 2]);
+                  group.normals.push(...normal);
+                  group.colors.push(color.r, color.g, color.b);
+                  group.uvs.push(uvs[i * 2], uvs[i * 2 + 1]);
                 }
-                target.indices.push(ndx, ndx + 1, ndx + 2, ndx, ndx + 2, ndx + 3);
+                group.indices.push(ndx, ndx + 1, ndx + 2, ndx, ndx + 2, ndx + 3);
               }
             }
           }
@@ -226,6 +281,7 @@ export class VoxelWorld {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
         geometry.setIndex(data.indices);
         const mesh = new THREE.Mesh(geometry, material);
         this.scene.add(mesh);
@@ -233,8 +289,26 @@ export class VoxelWorld {
       }
     };
 
-    updateMesh(key, solid, this.material);
-    updateMesh(transKey, transparent, this.transparentMaterial);
+    // 创建带纹理的材质
+    const createTexturedMaterial = (data) => {
+      if (data.texture && this.textures.has(data.texture)) {
+        const texture = this.textures.get(data.texture);
+        return new THREE.MeshLambertMaterial({
+          map: texture,
+          vertexColors: true,
+          transparent: data.transparent || false,
+          opacity: data.transparent ? 0.7 : 1
+        });
+      }
+      return data.transparent ? this.transparentMaterial : this.material;
+    };
+
+    // 为每个材质组创建网格
+    materialGroups.forEach((group, materialKey) => {
+      const material = createTexturedMaterial(group.data);
+      const meshKey = `${key}_${materialKey}`;
+      updateMesh(meshKey, group, material);
+    });
   }
 
   createParticles(pos, color) {

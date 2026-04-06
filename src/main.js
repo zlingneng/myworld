@@ -16,12 +16,46 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
+// Day-night cycle
+let timeOfDay = 0; // 0 = noon, 0.5 = midnight
+const dayLength = 180; // seconds per day (3 minutes)
+
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(1, 1, 0.5).normalize();
 scene.add(directionalLight);
+
+// Update day-night cycle
+function updateDayNightCycle(delta) {
+  timeOfDay = (timeOfDay + delta / dayLength) % 1;
+  
+  // Calculate light intensity based on time of day (minimum 0.4 to keep night bright)
+  const lightIntensity = Math.max(0.4, Math.sin(timeOfDay * Math.PI * 2) * 0.6 + 0.4);
+  
+  // Update ambient light (keep ambient light bright even at night)
+  ambientLight.intensity = lightIntensity * 0.8;
+  
+  // Update directional light (sun/moon)
+  directionalLight.intensity = lightIntensity * 1.0;
+  
+  // Update sunlight color (warmer during day, cooler at night)
+  if (lightIntensity > 0.5) {
+    // Daytime
+    const t = (lightIntensity - 0.5) * 2;
+    directionalLight.color.setRGB(1.0, 0.95, 0.85); // Warm sunlight
+    scene.background.setRGB(0.53, 0.81, 0.92); // Sky blue
+  } else {
+    // Nighttime (brighter night sky)
+    const t = (0.5 - lightIntensity) * 2;
+    directionalLight.color.setRGB(0.9, 0.92, 1.0); // Cool but bright moonlight
+    scene.background.setRGB(0.2, 0.2, 0.4); // Brighter night sky
+  }
+  
+  // Update fog color to match sky
+  scene.fog.color.copy(scene.background);
+}
 
 const world = new THREE.Group();
 scene.add(world);
@@ -55,6 +89,7 @@ function animate() {
   player.update(delta);
   voxelWorld.update(delta, player);
   network.update(delta);
+  updateDayNightCycle(delta);
   renderer.render(scene, camera);
   ui.update();
 }

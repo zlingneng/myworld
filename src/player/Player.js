@@ -40,8 +40,8 @@ export class Player {
     window.addEventListener('keydown', (e) => this.keys[e.code] = true);
     window.addEventListener('keyup', (e) => this.keys[e.code] = false);
 
-    // Initial position
-    this.camera.position.set(24, 25, 24);
+    // Initial position (center of 200x200 world)
+    this.camera.position.set(100, 25, 100);
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2(0, 0);
@@ -59,6 +59,16 @@ export class Player {
       [BLOCK_TYPES.LEAVES]: 64,
       [BLOCK_TYPES.WATER]: 64,
       [BLOCK_TYPES.MEAT]: 0,
+      [BLOCK_TYPES.SAND]: 64,
+      [BLOCK_TYPES.GLASS]: 64,
+      [BLOCK_TYPES.COBBLESTONE]: 64,
+      [BLOCK_TYPES.BRICK]: 64,
+      [BLOCK_TYPES.APPLE]: 10,
+      [BLOCK_TYPES.BREAD]: 10,
+      [BLOCK_TYPES.TORCH]: 64,
+      [BLOCK_TYPES.DOOR]: 10,
+      [BLOCK_TYPES.STAIRS]: 64,
+      [BLOCK_TYPES.WHEAT]: 64,
     };
 
     this.lastClickTime = 0;
@@ -202,7 +212,19 @@ export class Player {
     if (data) {
       const isSword = data.name.includes('Sword');
       const geo = isSword ? new THREE.BoxGeometry(0.1, 0.8, 0.1) : new THREE.BoxGeometry(0.3, 0.3, 0.3);
-      const mat = new THREE.MeshLambertMaterial({ color: data.color });
+      
+      let mat;
+      if (data.texture) {
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load(data.texture);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+        mat = new THREE.MeshLambertMaterial({ map: texture, color: data.color });
+      } else {
+        mat = new THREE.MeshLambertMaterial({ color: data.color });
+      }
+      
       this.heldItem = new THREE.Mesh(geo, mat);
       
       if (isSword) {
@@ -230,32 +252,51 @@ export class Player {
     }
   }
 
-  tryCraft() {
-    for (const recipe of CRAFTING_RECIPES) {
-      let canCraft = true;
-      for (const [type, count] of Object.entries(recipe.ingredients)) {
-        if ((this.inventory[type] || 0) < count) {
-          canCraft = false;
-          break;
-        }
-      }
+  tryCraft(recipeIndex = -1) {
+    const availableRecipes = this.getAvailableRecipes();
+    
+    if (availableRecipes.length === 0) {
+      console.log('[Crafting] No recipes available');
+      return false;
+    }
 
-      if (canCraft) {
-        // Check if already have the sword
-        if (this.inventory[recipe.result] > 0) continue;
+    let recipe;
+    if (recipeIndex >= 0 && recipeIndex < availableRecipes.length) {
+      recipe = availableRecipes[recipeIndex];
+    } else {
+      recipe = availableRecipes[0];
+    }
 
-        // Consume ingredients
-        for (const [type, count] of Object.entries(recipe.ingredients)) {
-          this.inventory[type] -= count;
-        }
-        // Add result
-        this.inventory[recipe.result] = 1;
-        this.selectedBlock = recipe.result;
-        console.log(`[Crafting] Crafted ${BLOCK_DATA[recipe.result].name}`);
-        this.sound.playPlace(); // Reuse place sound for crafting
-        break;
+    if (!recipe) return false;
+
+    const canCraft = this.canCraftRecipe(recipe);
+    if (!canCraft) return false;
+
+    this.craftRecipe(recipe);
+    return true;
+  }
+
+  getAvailableRecipes() {
+    return CRAFTING_RECIPES.filter(recipe => this.canCraftRecipe(recipe));
+  }
+
+  canCraftRecipe(recipe) {
+    for (const [type, count] of Object.entries(recipe.ingredients)) {
+      if ((this.inventory[type] || 0) < count) {
+        return false;
       }
     }
+    return true;
+  }
+
+  craftRecipe(recipe) {
+    for (const [type, count] of Object.entries(recipe.ingredients)) {
+      this.inventory[type] -= count;
+    }
+    this.inventory[recipe.result] = (this.inventory[recipe.result] || 0) + (recipe.count || 1);
+    this.selectedBlock = recipe.result;
+    console.log(`[Crafting] Crafted ${BLOCK_DATA[recipe.result].name}`);
+    this.sound.playPlace();
   }
 
   updateEating(delta) {
